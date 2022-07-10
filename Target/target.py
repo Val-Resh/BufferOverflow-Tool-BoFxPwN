@@ -2,25 +2,35 @@ from pwn import *
 
 
 class Target:
-    def __init__(self, connection, remote: bool, process):
+    def __init__(self, connection, is_remote: bool, process_path):
         self.connection = connection
-        self.remote = remote
-        self.process = process
+        self.is_remote = is_remote
+        self.process_path = process_path
+        if not is_remote:
+            context.binary = process_path.split(" ")[0]
 
-    def receive_data(self):
-        data = ""
+    def receive_data(self, timeout=1):
+        _data = ""
         while True:
             try:
-                response = self.connection.recv(1024, 1).decode()
+                response = self.connection.recv(1024, timeout).decode()
             except EOFError:
                 break
             if len(response) < 1:
                 break
-            data += response
-        return data
+            _data += response
+        return _data
 
-    def send_data(self, data: str):
-        self.connection.sendline(data.encode())
+    def send_data(self, _data: str):
+        self.connection.sendline(_data.encode())
 
     def is_alive(self):
-        return True if self.connection.poll() is None else False
+        return self.connection.poll() is None
+
+    def get_pid(self):
+        return self.connection.__getattr__("pid")
+
+    def get_bit_arch(self):
+        if not self.is_remote:
+            return context.bits
+        return -1

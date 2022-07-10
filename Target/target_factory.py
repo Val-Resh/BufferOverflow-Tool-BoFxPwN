@@ -14,7 +14,8 @@ def create_target(target: str):
             print(f'Unable to connect to {target[0]}:{target[1]}, please ensure host is up.\nFormat: IP:PORT')
     else:
         try:
-            return Target(process(target.split(" ")), False, target)
+            split_commands = target.split(" ")
+            return Target(process(split_commands), False, target)
         except PwnlibException:
             print(f'Unable to start local process {target}, please ensure the binary name is correct.\nExample: '
                   f'./my_vuln_binary'
