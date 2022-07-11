@@ -6,8 +6,8 @@ from pwn import *
 
 
 class Fuzzer:
-    registers_arch = {"64": ["rip", "rsp", "rbp"],
-                      "32": ["eip", "esp", "ebp"]}
+    registers_arch = {"64": ["rip", "rsp"],
+                      "32": ["eip", "esp"]}
 
     def indentify_crash(self, target: Target, attempts: int = 100):
         _size = 100
@@ -49,8 +49,11 @@ class Fuzzer:
 
         for register in self.registers_arch[str(target.get_bit_arch())]:
             debugger.send_data(f"x ${register}")
-            register = debugger.receive_data().replace("\t", " ").replace("\n", " ").split(" ")
-            pointer_register = register[0]
+            memory = debugger.receive_data().replace("\t", " ").replace("\n", " ").split(" ")
+            pointer_register = memory[1] if "sp" in register  \
+                else memory[0]
+
+            print(pointer_register)
 
             if pointer_register[len(pointer_register)-1] == ":":
                 pointer_register = pointer_register[:-1]
