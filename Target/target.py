@@ -1,4 +1,5 @@
 from pwn import *
+from termcolor import colored
 
 
 class Target:
@@ -7,7 +8,19 @@ class Target:
         self.is_remote = is_remote
         self.process_path = process_path
         if not is_remote:
-            context.binary = process_path.split(" ")[0]
+            binary = process_path.split(" ")[0]
+            context.binary = binary
+            self.security = ELF(binary).checksec().split("\n")
+
+    def print_security(self):
+        print("\nSecurity Mechanisms:")
+        for mechanism in self.security:
+            if "no" in mechanism.lower():
+                split = mechanism.split(":")
+                print(f'{split[0]}:{colored(split[1], "red", attrs=["bold"])}')
+            else:
+                split = mechanism.rsplit(":")
+                print(f'{split[0]}:{colored(split[1], "green", attrs=["bold"])}')
 
     def receive_data(self, timeout=1):
         _data = ""
