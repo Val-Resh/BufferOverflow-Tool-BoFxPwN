@@ -19,14 +19,17 @@ class Fuzzer:
                 response = target.receive_data()
                 if len(response) < 1:
                     return _size
-                _size += 100
             except Exception:
                 target.connection.kill()
-            if not target.is_alive():
-                target = create_target(target.process)
+                return _size
+            _size += 100
+            target = create_target(target.process_path)
         return 0
 
     def get_offset(self, target: Target, _size: int):
+        if not target.is_alive():
+            target = create_target(target.process_path)
+
         pattern_style = string.ascii_uppercase
         if target.is_remote:
             return -1
@@ -52,8 +55,6 @@ class Fuzzer:
             memory = debugger.receive_data().replace("\t", " ").replace("\n", " ").split(" ")
             pointer_register = memory[1] if "sp" in register  \
                 else memory[0]
-
-            print(pointer_register)
 
             if pointer_register[len(pointer_register)-1] == ":":
                 pointer_register = pointer_register[:-1]
